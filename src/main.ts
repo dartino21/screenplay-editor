@@ -10,7 +10,18 @@ import { ScriptEditor } from './editor/editor'
 import { HistoryStack } from './editor/history'
 import { parseFountain, serializeFountain } from './model/fountain'
 import { emptyDocument, type ScriptDocument } from './model/types'
-import { loadDocument, saveDocument, clearDocument } from './storage'
+import {
+  loadOrSeedDocument,
+  saveDocument,
+  listScripts,
+  getCurrentScriptId,
+  createScript,
+  saveScriptAs,
+  openScript,
+  deleteScript,
+  duplicateScript,
+  renameScript,
+} from './storage'
 import { bindToolbar, renderShell } from './ui/toolbar'
 
 const SAMPLE: ScriptDocument = {
@@ -79,11 +90,7 @@ function main() {
   const app = document.querySelector('#app')
   if (!app) return
 
-  let doc = loadDocument()
-  if (!localStorage.getItem('screenplay:document')) {
-    doc = SAMPLE
-    saveDocument(doc)
-  }
+  let doc = loadOrSeedDocument(SAMPLE)
 
   const shell = renderShell(app as HTMLElement)
   const history = new HistoryStack(doc)
@@ -109,7 +116,10 @@ function main() {
       shell.updateOutline(doc, editor.getFocusIndex())
       if (findOpen) refreshFind(false)
       window.clearTimeout(saveTimer)
-      saveTimer = window.setTimeout(() => saveDocument(doc), 300)
+      saveTimer = window.setTimeout(() => {
+        saveDocument(doc)
+        shell.setSaveStatus('Сохранено')
+      }, 300)
     },
     onFocusType: (type) => shell.updateTypeHint(type),
     onFocusIndex: (index) => shell.updateOutline(doc, index),
@@ -181,6 +191,91 @@ function main() {
     const n = editor.renameCharacter(from, to)
     doc = editor.getDocument()
     alert(n ? `Обновлено реплик: ${n}` : 'Персонаж не найден')
+  }
+
+  function refreshLibraryDialog() {
+    const currentId = getCurrentScriptId()
+    shell.showLibrary(
+      listScripts().map((s) => ({
+        ...s,
+        current: s.id === currentId,
+      })),
+      {
+        onOpen: (id) => {
+          if (id === getCurrentScriptId()) return
+          saveDocument(editor.getDocument())
+          const next = openScript(id)
+          if (!next) return
+          history.push(editor.getDocument())
+          applyDoc(next)
+          shell.setSaveStatus('Открыто')
+        },
+        onDelete: (id) => {
+          const meta = listScripts().find((s) => s.id === id)
+          if (
+            !confirm(
+              `Удалить «${meta?.title ?? 'сценарий'}»? Это действие только в вашем браузере.`,
+            )
+          ) {
+            return
+          }
+          const wasCurrent = id === getCurrentScriptId()
+          if (!wasCurrent) {
+            saveDocument(editor.getDocument())
+          }
+          const next = deleteScript(id)
+          if (wasCurrent && next) {
+            history.sync(next)
+            applyDoc(next)
+          }
+          refreshLibraryDialog()
+        },
+        onDuplicate: (id) => {
+          saveDocument(editor.getDocument())
+          const newId = duplicateScript(id)
+          if (!newId) return
+          const next = openScript(newId)
+          if (next) {
+            history.sync(next)
+            applyDoc(next)
+          }
+          refreshLibraryDialog()
+          shell.setSaveStatus('Копия')
+        },
+        onRename: (id) => {
+          const meta = listScripts().find((s) => s.id === id)
+          const title =
+            prompt('Название сценария:', meta?.title ?? '')?.trim() ?? ''
+          if (!title) return
+          renameScript(id, title)
+          if (id === getCurrentScriptId()) {
+            editor.updateTitlePage({ title })
+            doc = editor.getDocument()
+            shell.setTitle(title)
+            saveDocument(doc)
+          }
+          refreshLibraryDialog()
+        },
+      },
+    )
+  }
+
+  function saveAsFlow() {
+    saveDocument(editor.getDocument())
+    const current = editor.getDocument()
+    const title =
+      prompt(
+        'Сохранить копию как…',
+        current.titlePage.title || 'Без названия',
+      )?.trim() ?? ''
+    if (!title) return
+    const id = saveScriptAs(current, title)
+    const next = openScript(id)
+    if (next) {
+      history.sync(next)
+      applyDoc(next)
+    }
+    shell.setSaveStatus('Копия сохранена')
   }
 
   function applyDoc(next: ScriptDocument) {
@@ -260,11 +355,20 @@ function main() {
         window.print()
       },
       onNew: () => {
-        if (!confirm('Создать новый сценарий? Текущий будет заменён.')) return
-        history.push(editor.getDocument())
-        clearDocument()
-        applyDoc(emptyDocument())
+        if (!confirm('Создать новый сценарий? Текущий останется в «Мои».')) return
+        const prev = editor.getDocument()
+        saveDocument(prev)
+        history.push(prev)
+        const fresh = emptyDocument()
+        createScript(fresh)
+        applyDoc(fresh)
+        shell.setSaveStatus('Новый')
       },
+      onOpenLibrary: () => {
+        saveDocument(editor.getDocument())
+        refreshLibraryDialog()
+      },
+      onSaveAs: () => saveAsFlow(),
       onInsertInt: () => editor.insertSlugline('int'),
       onInsertExt: () => editor.insertSlugline('ext'),
       onFocusMode: () => {
@@ -359,6 +463,19 @@ function main() {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f') {
       e.preventDefault()
       openFind()
+      return
+    }
+
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+      e.preventDefault()
+      saveAsFlow()
+      return
+    }
+
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'o') {
+      e.preventDefault()
+      saveDocument(editor.getDocument())
+      refreshLibraryDialog()
       return
     }
 

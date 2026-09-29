@@ -84,6 +84,13 @@ body {
   border-bottom-color: var(--ui-line);
 }
 
+.save-status {
+  font-size: 11px;
+  color: var(--ui-muted);
+  min-width: 5.5em;
+  white-space: nowrap;
+}
+
 .toolbar__group {
   display: flex;
   align-items: center;
@@ -488,6 +495,122 @@ body.focus-mode .find-bar {
   margin: 0 0 14px;
 }
 
+.library-dialog {
+  border: 1px solid var(--ui-line);
+  border-radius: 2px;
+  padding: 0;
+  max-width: 520px;
+  width: calc(100vw - 32px);
+  background: var(--paper);
+  color: var(--ui-ink);
+  box-shadow: var(--paper-shadow);
+}
+
+.library-dialog::backdrop {
+  background: rgba(40, 36, 30, 0.35);
+}
+
+.library-dialog__inner {
+  margin: 0;
+  padding: 18px 20px 14px;
+}
+
+.library-dialog__head h2 {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.library-dialog__note {
+  margin: 0 0 14px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ui-muted);
+}
+
+.library-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: min(50vh, 360px);
+  overflow-y: auto;
+  border-top: 1px solid var(--ui-line);
+  border-bottom: 1px solid var(--ui-line);
+}
+
+.library-list__empty {
+  padding: 20px 8px;
+  text-align: center;
+  color: var(--ui-muted);
+  font-size: 13px;
+}
+
+.library-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--ui-line);
+}
+
+.library-item:last-child {
+  border-bottom: none;
+}
+
+.library-item--current {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.library-item__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.library-item__open {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 4px 6px;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.library-item__open:hover .library-item__title {
+  text-decoration: underline;
+}
+
+.library-item__title {
+  font-size: 14px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.library-item__meta {
+  font-size: 11px;
+  color: var(--ui-muted);
+}
+
+.library-item__actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.library-dialog__foot {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 12px;
+}
+
 /* Focus mode: progressive disclosure — only the page */
 body.focus-mode .chrome,
 body.focus-mode .toolbar,
@@ -524,6 +647,7 @@ body.focus-mode {
   .tip,
   .autocomplete,
   .help-dialog,
+  .library-dialog,
   .find-bar {
     display: none !important;
   }

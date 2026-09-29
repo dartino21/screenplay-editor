@@ -23,6 +23,8 @@ export interface ToolbarHandlers {
   onFind: () => void
   onRenameCharacter: () => void
   onSetType: (type: ElementType) => void
+  onOpenLibrary: () => void
+  onSaveAs: () => void
 }
 
 export function renderShell(app: HTMLElement): {
@@ -44,12 +46,28 @@ export function renderShell(app: HTMLElement): {
   showFind: (show: boolean) => void
   getFindQuery: () => { query: string; replace: string }
   setFindCount: (text: string) => void
+  setSaveStatus: (text: string) => void
+  showLibrary: (
+    items: {
+      id: string
+      title: string
+      updatedAt: number
+      current: boolean
+    }[],
+    handlers: {
+      onOpen: (id: string) => void
+      onDelete: (id: string) => void
+      onDuplicate: (id: string) => void
+      onRename: (id: string) => void
+    },
+  ) => void
 } {
   app.innerHTML = `
     <div class="chrome">
     <header class="toolbar" id="toolbar">
       <span class="toolbar__brand">Сценарий</span>
       <input class="toolbar__title" id="doc-title" type="text" spellcheck="false" aria-label="Название" />
+      <span class="save-status" id="save-status" aria-live="polite"></span>
       <div class="toolbar__sep"></div>
       <div class="seg" role="group" aria-label="Формат">
         <button type="button" data-format="us" id="fmt-us" title="Hollywood / US Letter">US</button>
@@ -68,6 +86,8 @@ export function renderShell(app: HTMLElement): {
       <button type="button" class="btn" id="btn-find" title="Найти (⌘F)">Найти</button>
       <button type="button" class="btn" id="btn-rename" title="Переименовать персонажа">Имя</button>
       <div class="toolbar__sep"></div>
+      <button type="button" class="btn" id="btn-library" title="Мои сценарии (⌘O)">Мои</button>
+      <button type="button" class="btn" id="btn-save-as" title="Сохранить как… (⌘S)">Сохранить</button>
       <button type="button" class="btn" id="btn-import" title="Открыть .fountain">Импорт</button>
       <button type="button" class="btn" id="btn-export" title="Скачать .fountain">.fountain</button>
       <button type="button" class="btn" id="btn-print" title="Печать / PDF">PDF</button>
@@ -121,6 +141,7 @@ export function renderShell(app: HTMLElement): {
           <li><kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>Enter</kbd> — персонаж</li>
           <li>полоска типов или <kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>1–6</kbd> — сменить тип</li>
           <li><kbd>Tab</kbd> меняет тип только на пустой строке, даже если открыт список. <kbd>Enter</kbd> и клик подтверждают пункт списка.</li>
+          <li><kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>S</kbd> — сохранить как копию · <kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>O</kbd> — мои сценарии</li>
           <li><kbd>F1</kbd> — справка</li>
           <li>«?» в тексте печатается</li>
           <li><kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>⇧Z</kbd> — отмена / повтор</li>
@@ -129,9 +150,21 @@ export function renderShell(app: HTMLElement): {
           <li><kbd>Alt</kbd>+<kbd>F</kbd> — режим фокуса · <kbd>Esc</kbd> — выйти из фокуса · <kbd>\\</kbd> — навигатор</li>
           <li><kbd>↑</kbd>/<kbd>↓</kbd> на краю строки — соседний блок</li>
         </ul>
-        <p class="help-dialog__note">Авто: CAPS для сцены и имени, (CONT'D) при повторной реплике, (MORE) на разрыве страницы. 1 стр. ≈ 1 мин.</p>
+        <p class="help-dialog__note">Автосохранение в этом браузере. Сценарии разных людей не пересекаются. 1 стр. ≈ 1 мин.</p>
         <button class="btn" value="ok">Закрыть</button>
       </form>
+    </dialog>
+    <dialog class="library-dialog" id="library-dialog">
+      <div class="library-dialog__inner">
+        <header class="library-dialog__head">
+          <h2>Мои сценарии</h2>
+          <p class="library-dialog__note">Хранятся только в вашем браузере на этом устройстве. На GitHub Pages у каждого пользователя своя библиотека.</p>
+        </header>
+        <ul class="library-list" id="library-list"></ul>
+        <footer class="library-dialog__foot">
+          <button type="button" class="btn btn--ghost" id="library-close">Закрыть</button>
+        </footer>
+      </div>
     </dialog>
     <input type="file" id="file-import" accept=".fountain,.txt,text/plain" hidden />
   `
@@ -264,6 +297,99 @@ export function renderShell(app: HTMLElement): {
     ;(app.querySelector('#find-count') as HTMLElement).textContent = text
   }
 
+  let saveStatusTimer: number | undefined
+  function setSaveStatus(text: string) {
+    const el = app.querySelector('#save-status') as HTMLElement
+    el.textContent = text
+    window.clearTimeout(saveStatusTimer)
+    if (text) {
+      saveStatusTimer = window.setTimeout(() => {
+        el.textContent = ''
+      }, 1800)
+    }
+  }
+
+  function formatUpdated(ts: number): string {
+    try {
+      return new Intl.DateTimeFormat('ru-RU', {
+        day: 'numeric',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(new Date(ts))
+    } catch {
+      return new Date(ts).toLocaleString()
+    }
+  }
+
+  function showLibrary(
+    items: {
+      id: string
+      title: string
+      updatedAt: number
+      current: boolean
+    }[],
+    handlers: {
+      onOpen: (id: string) => void
+      onDelete: (id: string) => void
+      onDuplicate: (id: string) => void
+      onRename: (id: string) => void
+    },
+  ) {
+    const dlg = app.querySelector('#library-dialog') as HTMLDialogElement
+    const list = app.querySelector('#library-list') as HTMLElement
+    list.replaceChildren()
+
+    if (!items.length) {
+      const empty = document.createElement('li')
+      empty.className = 'library-list__empty'
+      empty.textContent = 'Пока нет сохранённых сценариев'
+      list.appendChild(empty)
+    } else {
+      for (const item of items) {
+        const li = document.createElement('li')
+        li.className =
+          'library-item' + (item.current ? ' library-item--current' : '')
+        li.innerHTML = `
+          <div class="library-item__main">
+            <button type="button" class="library-item__open" data-id="${escapeHtml(item.id)}">
+              <span class="library-item__title">${escapeHtml(item.title)}</span>
+              <span class="library-item__meta">${item.current ? 'открыт · ' : ''}${escapeHtml(formatUpdated(item.updatedAt))}</span>
+            </button>
+          </div>
+          <div class="library-item__actions">
+            <button type="button" class="btn btn--ghost" data-act="rename" data-id="${escapeHtml(item.id)}" title="Переименовать">✎</button>
+            <button type="button" class="btn btn--ghost" data-act="dup" data-id="${escapeHtml(item.id)}" title="Копия">⧉</button>
+            <button type="button" class="btn btn--ghost" data-act="del" data-id="${escapeHtml(item.id)}" title="Удалить">✕</button>
+          </div>
+        `
+        list.appendChild(li)
+      }
+    }
+
+    list.onclick = (e) => {
+      const t = e.target as HTMLElement
+      const openBtn = t.closest('.library-item__open') as HTMLElement | null
+      if (openBtn?.dataset.id) {
+        handlers.onOpen(openBtn.dataset.id)
+        dlg.close()
+        return
+      }
+      const actBtn = t.closest('[data-act]') as HTMLElement | null
+      if (!actBtn?.dataset.id || !actBtn.dataset.act) return
+      const id = actBtn.dataset.id
+      if (actBtn.dataset.act === 'del') handlers.onDelete(id)
+      else if (actBtn.dataset.act === 'dup') handlers.onDuplicate(id)
+      else if (actBtn.dataset.act === 'rename') handlers.onRename(id)
+    }
+
+    if (!dlg.open) dlg.showModal()
+  }
+
+  app.querySelector('#library-close')!.addEventListener('click', () => {
+    ;(app.querySelector('#library-dialog') as HTMLDialogElement).close()
+  })
+
   return {
     toolbar,
     meta,
@@ -283,6 +409,8 @@ export function renderShell(app: HTMLElement): {
     showFind,
     getFindQuery,
     setFindCount,
+    setSaveStatus,
+    showLibrary,
   }
 }
 
@@ -326,6 +454,8 @@ export function bindToolbar(
   app.querySelector('#btn-import')!.addEventListener('click', () => handlers.onImportFountain())
   app.querySelector('#btn-print')!.addEventListener('click', () => handlers.onPrint())
   app.querySelector('#btn-new')!.addEventListener('click', () => handlers.onNew())
+  app.querySelector('#btn-library')!.addEventListener('click', () => handlers.onOpenLibrary())
+  app.querySelector('#btn-save-as')!.addEventListener('click', () => handlers.onSaveAs())
   app.querySelector('#btn-int')!.addEventListener('click', () => handlers.onInsertInt())
   app.querySelector('#btn-ext')!.addEventListener('click', () => handlers.onInsertExt())
   app.querySelector('#btn-focus')!.addEventListener('click', () => handlers.onFocusMode())
