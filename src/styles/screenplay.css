@@ -1,0 +1,294 @@
+@import "@fontsource/courier-prime/400.css";
+
+.page {
+  position: relative;
+  background: var(--paper);
+  box-shadow: var(--paper-shadow);
+  margin: 0 auto 28px;
+  color: #111;
+  font-family: "Courier Prime", "Courier New", Courier, monospace;
+  font-size: 12pt;
+  line-height: 1;
+  overflow: hidden;
+}
+
+.page__number {
+  position: absolute;
+  top: 0.5in;
+  right: 1in;
+  font-family: "Courier Prime", "Courier New", Courier, monospace;
+  font-size: 12pt;
+}
+
+.page__number.is-hidden {
+  display: none;
+}
+
+.page__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.line {
+  display: block;
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  resize: none;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  padding: 0;
+  margin: 0 0 12pt;
+  min-height: 12pt;
+  border-radius: 0;
+  caret-color: #111;
+}
+
+.line:focus,
+.line:focus-visible,
+.line:active {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+}
+
+.line::spelling-error,
+.line::grammar-error {
+  text-decoration: none;
+  background: transparent;
+}
+
+.line-wrap {
+  position: relative;
+  display: block;
+  width: 100%;
+  margin: 0 0 12pt;
+}
+
+.line-wrap > .line {
+  margin-bottom: 0;
+  position: relative;
+  z-index: 1;
+  background: transparent;
+}
+
+.line-find-rect {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  background: rgba(255, 214, 10, 0.55);
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px rgba(200, 140, 0, 0.45);
+}
+
+.line--more,
+.line--contd {
+  pointer-events: none;
+  color: #111;
+  user-select: none;
+}
+
+.line--more {
+  text-align: center;
+  margin-bottom: 0;
+}
+
+.line--contd {
+  /* styled per format as character */
+}
+
+/* ——— US (Hollywood / Letter) ——— */
+.format-us .page {
+  width: 8.5in;
+  min-height: 11in;
+  padding: 1in 1in 1in 1.5in;
+}
+
+.format-us .page__number {
+  right: 1in;
+  top: 0.5in;
+}
+
+.format-us .line--scene_heading,
+.format-us .line--action {
+  margin-left: 0;
+  width: 6in;
+}
+
+.format-us .line--character {
+  margin-left: 2in; /* Writers Store: 2.0″ from text area → 3.5″ from page */
+  width: 4in;
+  text-transform: uppercase;
+}
+
+.format-us .line--parenthetical {
+  margin-left: 1.5in;
+  width: 2.5in; /* right indent 2.0″ within 6″ text area */
+}
+
+.format-us .line--dialogue {
+  margin-left: 1in;
+  width: 3.5in; /* right indent 1.5″ */
+}
+
+.format-us .line--transition {
+  margin-left: 4in;
+  width: 2in;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.format-us .line--contd {
+  margin-left: 2in;
+  width: 4in;
+  text-transform: uppercase;
+}
+
+.format-us .line--more {
+  margin-left: 1in;
+  width: 3.5in;
+}
+
+/* ——— RU (A4 / Kit ≡ Smirnova) ———
+   Element indents are FROM THE TEXT AREA (page padding already applied),
+   not from the page edge. See research/screenplay-formatting-standards.md */
+.format-ru .page {
+  width: 210mm;
+  min-height: 297mm;
+  padding: 25mm 25mm 12.5mm 37.5mm;
+}
+
+.format-ru .page__number {
+  right: 25mm;
+  top: 12mm;
+}
+
+.format-ru .line--scene_heading,
+.format-ru .line--action {
+  margin-left: 0;
+  width: 147.5mm; /* 210 − 37.5 − 25 */
+}
+
+.format-ru .line--character {
+  margin-left: 67.5mm; /* имя героя: 6.75 cm from text area */
+  width: 80mm;
+  text-transform: uppercase;
+}
+
+.format-ru .line--parenthetical {
+  margin-left: 55mm; /* ремарка: 5.5 cm left, 4.5 cm right */
+  width: 47.5mm; /* 147.5 − 55 − 45 */
+}
+
+.format-ru .line--dialogue {
+  margin-left: 37.5mm; /* реплика: 3.75 cm + 3.75 cm */
+  width: 72.5mm; /* 147.5 − 37.5 − 37.5 */
+}
+
+.format-ru .line--transition {
+  margin-left: 0;
+  width: 147.5mm;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.format-ru .line--contd {
+  margin-left: 67.5mm;
+  width: 80mm;
+  text-transform: uppercase;
+}
+
+.format-ru .line--more {
+  margin-left: 37.5mm;
+  width: 72.5mm;
+}
+
+.title-page {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  min-height: inherit;
+  font-family: "Courier Prime", "Courier New", Courier, monospace;
+  font-size: 12pt;
+  line-height: 1.4;
+}
+
+.title-page__title {
+  margin-bottom: 2em;
+  text-transform: uppercase;
+}
+
+.title-page__by {
+  margin-bottom: 0.5em;
+}
+
+.title-page__author {
+  margin-bottom: 3em;
+}
+
+.title-page__meta {
+  position: absolute;
+  bottom: 1.5in;
+  left: 1.5in;
+  right: 1in;
+  text-align: left;
+  white-space: pre-wrap;
+}
+
+.format-ru .title-page__meta {
+  bottom: 40mm;
+  left: 37.5mm;
+  right: 25mm;
+}
+
+@media print {
+  .page {
+    box-shadow: none;
+    margin: 0;
+    page-break-after: always;
+    break-after: page;
+  }
+
+  .page:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+
+  .format-us .page {
+    width: 8.5in;
+    height: 11in;
+    min-height: 11in;
+  }
+
+  .format-ru .page {
+    width: 210mm;
+    height: 297mm;
+    min-height: 297mm;
+  }
+
+  @page {
+    margin: 0;
+  }
+}
+
+@media (max-width: 900px) {
+  .format-us .page,
+  .format-ru .page {
+    width: 100%;
+    min-height: auto;
+    transform-origin: top center;
+  }
+}
