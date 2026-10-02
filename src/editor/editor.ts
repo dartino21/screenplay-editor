@@ -23,6 +23,7 @@ import {
 } from './keymap'
 import { applyAutoContd, recentSpeakers } from './smart'
 import { paginate, type DisplayLine } from '../layout/paginate'
+import { detectTextLanguage, findGrammarIssues } from './grammar'
 
 export type EditorCallbacks = {
   onChange: (doc: ScriptDocument) => void
@@ -61,6 +62,8 @@ export class ScriptEditor {
   /** Ignore blur-driven autocomplete hide while render() swaps textareas. */
   private rebuilding = false
   private renderGen = 0
+  private grammarEnabled = true
+  private grammarPaintFrame: number | undefined
   /** After Enter, open suggestions once focus lands on the new line. */
   private pendingAc = false
   private acAnchor: HTMLTextAreaElement | null = null
@@ -126,6 +129,17 @@ export class ScriptEditor {
     this.root.classList.add(`format-${format}`)
     this.render()
     this.emit()
+  }
+
+  setGrammarEnabled(enabled: boolean) {
+    this.grammarEnabled = enabled
+    this.root.classList.toggle('grammar-enabled', enabled)
+    this.root.querySelectorAll('textarea.line').forEach((node) => {
+      const ta = node as HTMLTextAreaElement
+      this.updateTextareaGrammarState(ta)
+    })
+    if (enabled) this.scheduleGrammarPaint()
+    else this.clearGrammarOverlayDom()
   }
 
   updateTitlePage(partial: Partial<ScriptDocument['titlePage']>) {
@@ -326,6 +340,7 @@ export class ScriptEditor {
 
     this.callbacks.onFocusIndex(this.focusIndex)
     this.paintFindHighlight()
+    this.scheduleGrammarPaint()
   }
 
   private renderTitleOnly() {
@@ -409,6 +424,71 @@ export class ScriptEditor {
     })
   }
 
+  private clearGrammarOverlayDom(scope: ParentNode = this.root) {
+    scope.querySelectorAll('.line-grammar-rect').forEach((node) => node.remove())
+  }
+
+  private scheduleGrammarPaint(only?: HTMLTextAreaElement) {
+    window.cancelAnimationFrame(this.grammarPaintFrame ?? 0)
+    this.grammarPaintFrame = window.requestAnimationFrame(() => {
+      this.grammarPaintFrame = window.requestAnimationFrame(() => {
+        if (!this.grammarEnabled) return
+        if (only?.isConnected) this.paintGrammarForTextarea(only)
+        else this.paintGrammarHighlights()
+      })
+    })
+  }
+
+  private paintGrammarHighlights() {
+    this.clearGrammarOverlayDom()
+    this.root.querySelectorAll('textarea.line').forEach((node) => {
+      this.paintGrammarForTextarea(node as HTMLTextAreaElement)
+    })
+  }
+
+  private paintGrammarForTextarea(ta: HTMLTextAreaElement) {
+    const wrap = ta.closest('.line-wrap') as HTMLElement | null
+    if (!wrap) return
+    this.clearGrammarOverlayDom(wrap)
+    if (!this.shouldCheckGrammar(ta)) return
+
+    for (const issue of findGrammarIssues(ta.value)) {
+      const rects = getTextareaRangeRects(ta, issue.start, issue.end, wrap)
+      for (const rect of rects) {
+        const mark = document.createElement('span')
+        mark.className = 'line-grammar-rect'
+        mark.setAttribute('aria-hidden', 'true')
+        mark.dataset.language = issue.language
+        mark.title = issue.message
+        mark.style.left = `${rect.left}px`
+        mark.style.top = `${rect.top}px`
+        mark.style.width = `${rect.width}px`
+        mark.style.height = `${Math.max(rect.height, 12)}px`
+        wrap.appendChild(mark)
+      }
+    }
+  }
+
+  private shouldCheckGrammar(ta: HTMLTextAreaElement): boolean {
+    return (
+      this.grammarEnabled &&
+      (ta.dataset.type === 'action' ||
+        ta.dataset.type === 'dialogue' ||
+        ta.dataset.type === 'parenthetical')
+    )
+  }
+
+  private updateTextareaGrammarState(ta: HTMLTextAreaElement) {
+    const enabled = this.shouldCheckGrammar(ta)
+    ta.spellcheck = enabled
+    ta.setAttribute('spellcheck', enabled ? 'true' : 'false')
+    ta.lang = detectTextLanguage(ta.value)
+    if (!enabled) {
+      const wrap = ta.closest('.line-wrap')
+      if (wrap) this.clearGrammarOverlayDom(wrap)
+    }
+  }
+
   private paintFindHighlight() {
     this.clearFindOverlayDom()
     const hit = this.findHighlight
@@ -457,12 +537,11 @@ export class ScriptEditor {
     ta.dataset.id = el.id
     ta.dataset.type = el.type
     ta.rows = 1
-    ta.spellcheck = false
-    ta.setAttribute('spellcheck', 'false')
     ta.setAttribute('autocomplete', 'off')
     ta.setAttribute('autocapitalize', 'off')
     ta.setAttribute('autocorrect', 'off')
     ta.value = el.text
+    this.updateTextareaGrammarState(ta)
     ta.setAttribute('aria-label', TYPE_LABELS[el.type])
 
     ta.addEventListener('focus', () => {
@@ -515,7 +594,9 @@ export class ScriptEditor {
       this.updateElement(el.id, { text, type })
       el.text = text
       el.type = type
+      this.updateTextareaGrammarState(ta)
       autosize(ta)
+      this.scheduleGrammarPaint(ta)
 
       this.savedCaret = {
         id: el.id,
@@ -715,6 +796,7 @@ export class ScriptEditor {
     ta.value = text
     ta.dataset.type = type
     ta.className = `line line--${type}`
+    this.updateTextareaGrammarState(ta)
     this.callbacks.onFocusType(type)
     autosize(ta)
     const pos = ta.selectionStart ?? text.length

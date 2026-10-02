@@ -65,8 +65,15 @@
 
 .line::spelling-error,
 .line::grammar-error {
-  text-decoration: none;
   background: transparent;
+}
+
+.line::spelling-error {
+  text-decoration: #c73b36 wavy underline;
+}
+
+.line::grammar-error {
+  text-decoration: #2d67b2 wavy underline;
 }
 
 .line-wrap {
@@ -85,11 +92,30 @@
 
 .line-find-rect {
   position: absolute;
-  z-index: 2;
+  z-index: 3;
   pointer-events: none;
   background: rgba(255, 214, 10, 0.55);
   border-radius: 2px;
   box-shadow: inset 0 0 0 1px rgba(200, 140, 0, 0.45);
+}
+
+.line-grammar-rect {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  background-image:
+    linear-gradient(135deg, transparent 40%, #2d67b2 40%, #2d67b2 58%, transparent 58%),
+    linear-gradient(45deg, transparent 40%, #2d67b2 40%, #2d67b2 58%, transparent 58%);
+  background-position: 0 100%, 2px 100%;
+  background-repeat: repeat-x;
+  background-size: 4px 3px;
+}
+
+@media print {
+  .line-grammar-rect,
+  .line-find-rect {
+    display: none !important;
+  }
 }
 
 .line--more,

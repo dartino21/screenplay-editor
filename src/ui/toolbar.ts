@@ -22,6 +22,7 @@ export interface ToolbarHandlers {
   onJumpScene: (elementId: string) => void
   onFind: () => void
   onRenameCharacter: () => void
+  onToggleGrammar: () => void
   onSetType: (type: ElementType) => void
   onOpenLibrary: () => void
   onSaveAs: () => void
@@ -41,6 +42,7 @@ export function renderShell(app: HTMLElement): {
   setFocusMode: (on: boolean) => void
   setOutlineOpen: (on: boolean) => void
   setMetaOpen: (on: boolean) => void
+  setGrammarEnabled: (on: boolean) => void
   showHelp: () => void
   showTip: (show: boolean) => void
   showFind: (show: boolean) => void
@@ -85,6 +87,7 @@ export function renderShell(app: HTMLElement): {
       <button type="button" class="btn" id="btn-redo" title="Повторить (⌘⇧Z)">↪</button>
       <button type="button" class="btn" id="btn-find" title="Найти (⌘F)">Найти</button>
       <button type="button" class="btn" id="btn-rename" title="Переименовать персонажа">Имя</button>
+      <button type="button" class="btn" id="btn-grammar" aria-pressed="true" title="Подсветка ошибок на русском и английском">Грамматика</button>
       <div class="toolbar__sep"></div>
       <button type="button" class="btn" id="btn-library" title="Мои сценарии (⌘O)">Мои</button>
       <button type="button" class="btn" id="btn-save-as" title="Сохранить как… (⌘S)">Сохранить</button>
@@ -147,6 +150,7 @@ export function renderShell(app: HTMLElement): {
           <li><kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>⇧Z</kbd> — отмена / повтор</li>
           <li><kbd>⇧</kbd>+<kbd>Enter</kbd> — мягкий перенос в блоке</li>
           <li><kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>F</kbd> — найти / заменить</li>
+          <li><strong>Грамматика</strong> — подсветка ошибок на русском и английском</li>
           <li><kbd>Alt</kbd>+<kbd>F</kbd> — режим фокуса · <kbd>Esc</kbd> — выйти из фокуса · <kbd>\\</kbd> — навигатор</li>
           <li><kbd>↑</kbd>/<kbd>↓</kbd> на краю строки — соседний блок</li>
         </ul>
@@ -252,6 +256,15 @@ export function renderShell(app: HTMLElement): {
     meta.hidden = !on
     meta.classList.toggle('is-collapsed', !on)
     app.querySelector('#btn-meta')?.classList.toggle('active', on)
+  }
+
+  function setGrammarEnabled(on: boolean) {
+    const button = app.querySelector('#btn-grammar') as HTMLButtonElement
+    button.classList.toggle('active', on)
+    button.setAttribute('aria-pressed', on ? 'true' : 'false')
+    button.title = on
+      ? 'Проверка русского и английского включена'
+      : 'Проверка русского и английского выключена'
   }
 
   function showHelp() {
@@ -404,6 +417,7 @@ export function renderShell(app: HTMLElement): {
     setFocusMode,
     setOutlineOpen,
     setMetaOpen,
+    setGrammarEnabled,
     showHelp,
     showTip,
     showFind,
@@ -476,6 +490,7 @@ export function bindToolbar(
   })
   app.querySelector('#btn-find')!.addEventListener('click', () => handlers.onFind())
   app.querySelector('#btn-rename')!.addEventListener('click', () => handlers.onRenameCharacter())
+  app.querySelector('#btn-grammar')!.addEventListener('click', () => handlers.onToggleGrammar())
   app.querySelector('#tip-dismiss')!.addEventListener('click', (e) => {
     e.preventDefault()
     e.stopPropagation()

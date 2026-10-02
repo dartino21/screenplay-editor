@@ -99,6 +99,7 @@ function main() {
   let outlineOpen = true
   let metaOpen = false
   let findOpen = false
+  let grammarEnabled = localStorage.getItem('screenplay:grammar-enabled') !== '0'
   let findMatches: ReturnType<typeof findInDocument> = []
   let findIndex = 0
 
@@ -389,6 +390,12 @@ function main() {
       onJumpScene: (id) => editor.jumpToElement(id),
       onFind: () => openFind(),
       onRenameCharacter: () => renameCharacterFlow(),
+      onToggleGrammar: () => {
+        grammarEnabled = !grammarEnabled
+        localStorage.setItem('screenplay:grammar-enabled', grammarEnabled ? '1' : '0')
+        editor.setGrammarEnabled(grammarEnabled)
+        shell.setGrammarEnabled(grammarEnabled)
+      },
       onSetType: (type) => editor.setFocusedLineType(type),
     },
     doc,
@@ -533,6 +540,8 @@ function main() {
   })
 
   shell.setFormatButtons(doc.format)
+  editor.setGrammarEnabled(grammarEnabled)
+  shell.setGrammarEnabled(grammarEnabled)
   shell.setTitle(doc.titlePage.title)
   shell.updateStats(doc)
   editor.render()
